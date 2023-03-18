@@ -1,44 +1,76 @@
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.animation import FuncAnimation
+import pygame
+import os
 
 from agents import *
 
-def visualize_environment(environment, agents, fig, ax):
-    ax.clear()
+def visualize_environment(environment, agents, screen, road_texture, intersection_texture, car_texture, pedestrian_texture):
+    if screen is None:
+        return
+
+    screen.fill((255, 255, 255))
+
+    scale_factor = 7
+
+    # Resize images
+    road_texture = pygame.transform.scale(road_texture, (environment.roads[1].length * scale_factor, 10 * scale_factor))
+    intersection_texture = pygame.transform.scale(intersection_texture, (10 * scale_factor, 30 * scale_factor))
+    car_texture = pygame.transform.scale(car_texture, (15 * scale_factor, 15 * scale_factor))
+    pedestrian_texture = pygame.transform.scale(pedestrian_texture, (15 * scale_factor, 15 * scale_factor))
 
     # Draw roads
     for road in environment.roads.values():
-        ax.add_patch(patches.Rectangle((0, road.id * 10), road.length, 10, edgecolor="black", facecolor="gray"))
+        screen.blit(road_texture, (0, road.id * 10 * scale_factor))
 
     # Draw intersections
     for intersection in environment.intersections.values():
-        ax.add_patch(patches.Rectangle((intersection.position, 0), 10, 30, edgecolor="black", facecolor="white"))
+        screen.blit(intersection_texture, (intersection.position * scale_factor, 0))
 
     # Draw traffic lights
     for intersection in environment.intersections.values():
         for traffic_light in intersection.traffic_lights:
-            color = "red" if traffic_light.state == 0 else "green"
-            ax.add_patch(patches.Circle((intersection.position + 5, traffic_light.road_id * 10 + 5), 1, color=color))
+            car_light_color = (255, 0, 0) if traffic_light.car_light_state == 0 else (0, 255, 0)
+            pedestrian_light_color = (255, 0, 0) if traffic_light.pedestrian_light_state == 0 else (0, 255, 0)
+            pygame.draw.circle(screen, car_light_color, (intersection.position * scale_factor + 5 * scale_factor, traffic_light.road_id * 10 * scale_factor + 5 * scale_factor), 2 * scale_factor)
+            pygame.draw.circle(screen, pedestrian_light_color, (intersection.position * scale_factor + 5 * scale_factor, traffic_light.road_id * 10 * scale_factor + 8 * scale_factor), 2 * scale_factor)
 
     # Draw agents
     for agent in agents:
         if isinstance(agent, Car):
-            ax.add_patch(patches.Rectangle((agent.position, agent.road_id * 10 + 2), 5, 5, edgecolor="black", facecolor="blue"))
+            car_rect = pygame.Rect(agent.position * scale_factor, agent.road_id * 20 * scale_factor + 2 * scale_factor, 15 * scale_factor, 15 * scale_factor)
+            screen.blit(car_texture, car_rect)
         elif isinstance(agent, Pedestrian):
-            ax.add_patch(patches.Circle((agent.position, agent.road_id * 10 + 7), 1, color="orange"))
+            pedestrian_rect = pedestrian_texture.get_rect(center=(int(agent.position * scale_factor), agent.road_id * 20 * scale_factor + 15 * scale_factor))
+            screen.blit(pedestrian_texture, pedestrian_rect)
 
-    ax.set_xlim(0, max(road.length for road in environment.roads.values()))
-    ax.set_ylim(0, (max(environment.roads.keys()) + 1) * 10)
+    pygame.display.update()
 
-def animate(environment, agents, intersections, traffic_lights, simulation_steps):
-    fig, ax = plt.subplots(figsize=(16, 9))
 
-    def update(step):
+
+def animate(environment, agents, intersections, traffic_lights, simulation_steps, scale_factor=2):
+    road_texture = pygame.image.load(os.path.join("textures", "road2.jpg"))
+    intersection_texture = pygame.image.load(os.path.join("textures", "crosswalk.jpg"))
+    car_texture = pygame.image.load(os.path.join("textures", "car1.png"))
+    pedestrian_texture = pygame.image.load(os.path.join("textures", "walk.png"))
+    pygame.init()
+    screen_width = (max(road.length for road in environment.roads.values()) + 100) * scale_factor
+    screen_height = (max(environment.roads.keys()) + 1) * 20 * scale_factor
+    screen = pygame.display.set_mode((screen_width, screen_height))
+    pygame.display.set_caption("Traffic Simulation")
+
+    clock = pygame.time.Clock()
+
+    for i in range(simulation_steps):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                return
+
         environment.step()
 
-        visualize_environment(environment, agents, fig, ax)
-        plt.pause(0.1)
+        visualize_environment(environment, agents, screen, road_texture, intersection_texture, car_texture, pedestrian_texture)
+        clock.tick(5)
 
-    anim = FuncAnimation(fig, update, frames=simulation_steps, interval=100, repeat=False)
-    plt.show()
+    pygame.quit()

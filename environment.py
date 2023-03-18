@@ -18,16 +18,19 @@ class TrafficLight:
         self.id = id
         self.road_id = road_id
         self.lane = lane
-        self.position = position  # Add this line
+        self.position = position
         self.time_interval = time_interval
-        self.state = 1
+        self.car_light_state = 1
+        self.pedestrian_light_state = 0
         self.time_elapsed = 0
 
     def update(self):
         self.time_elapsed += 1
         if self.time_elapsed >= self.time_interval:
-            self.state = (self.state + 1) % 2  # Change from % 3 to % 2 for alternating between red and green states
+            self.car_light_state = (self.car_light_state + 1) % 2
+            self.pedestrian_light_state = (self.pedestrian_light_state + 1) % 2
             self.time_elapsed = 0
+
 
 class Environment:
     def __init__(self):
@@ -62,10 +65,10 @@ class Environment:
 
     def get_next_intersection(self, road_id, position):
         intersections_on_road = [i for i in self.intersections.values() if road_id in i.incoming_roads]
-        intersections_ahead = [i for i in intersections_on_road if i.position > position]
+        intersections_ahead = [i for i in intersections_on_road if i.position >= position]
         next_intersection = min(intersections_ahead, key=lambda x: x.position) if intersections_ahead else None
-        if next_intersection is not None:
-            print(f"Next intersection for road {road_id}: {next_intersection.id}")
+        # if next_intersection is not None:
+            # print(f"Next intersection for road {road_id}: {next_intersection.id}")
         return next_intersection
 
     def get_traffic_light(self, intersection, road_id):
@@ -73,6 +76,6 @@ class Environment:
             return None
 
         traffic_light = next((tl for tl in intersection.traffic_lights if tl.road_id == road_id), None)
-        if traffic_light is not None:
-            print(f"Traffic light for intersection {intersection.id} and road {road_id}: {traffic_light.id}")
+        # if traffic_light is not None:
+            # print(f"Traffic light for intersection {intersection.id} and road {road_id}: {traffic_light.id}")
         return traffic_light
